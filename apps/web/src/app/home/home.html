@@ -1,0 +1,88 @@
+<section class="hero">
+  <div class="hero-text">
+    <p class="welcome">Welcome to</p>
+    <h1>Shipping Express</h1>
+    <p class="tagline">Fast, Door-to-Door, Courier Delivered</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button role="tab" [class.active]="tab() === 'shipment'" data-dd-action-name="Tab: Create a New Shipment"
+              (click)="selectTab('shipment')">Create a New Shipment</button>
+      <button role="tab" [class.active]="tab() === 'quote'" data-dd-action-name="Tab: Get a Rate and Time Quote"
+              (click)="selectTab('quote')">Get a Rate and Time Quote</button>
+      <button role="tab" [class.active]="tab() === 'pickup'" data-dd-action-name="Tab: Schedule a Pickup"
+              (click)="selectTab('pickup')">Schedule a Pickup</button>
+    </div>
+
+    @if (tab() !== 'pickup') {
+      <div class="route">
+        <div class="stops">
+          <span class="stop">A</span>
+          <span class="dots"></span>
+          <span class="stop">B</span>
+        </div>
+        <div class="fields">
+          <div class="row">
+            <select [(ngModel)]="shipment.fromCountry" name="fromCountry" aria-label="From country">
+              @for (c of countries; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+            <input [(ngModel)]="shipment.from" name="from" placeholder="From" aria-label="From address" />
+          </div>
+          <div class="row">
+            <select [(ngModel)]="shipment.toCountry" name="toCountry" aria-label="To country">
+              @for (c of countries; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+            <input [(ngModel)]="shipment.to" name="to" placeholder="To" aria-label="To address" />
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="fields pickup">
+        <div class="row">
+          <input [(ngModel)]="pickupAddress" name="pickupAddress" placeholder="Pickup address" aria-label="Pickup address" />
+          <input type="date" [(ngModel)]="pickupDate" name="pickupDate" aria-label="Pickup date" />
+        </div>
+      </div>
+    }
+
+    <div class="card-footer">
+      <ul class="perks">
+        <li>No account? No problem! Pay with a credit card.</li>
+        <li>Print labels and schedule courier pickups</li>
+      </ul>
+      <div class="cards">
+        <span class="pay visa">VISA</span>
+        <span class="pay mc"><i></i><i></i></span>
+        <span class="pay amex">AMEX</span>
+      </div>
+      <button class="btn-go" [disabled]="busy()" (click)="next()"
+              [attr.data-dd-action-name]="tab() === 'shipment' ? 'Create shipment' : tab() === 'quote' ? 'Get quote' : 'Schedule pickup'">
+        {{ busy() ? '…' : 'Next' }}
+      </button>
+    </div>
+
+    @if (banner(); as b) {
+      <div class="banner" [class.ok]="b.kind === 'ok'" [class.err]="b.kind === 'err'">{{ b.text }}</div>
+    }
+  </div>
+</section>
+
+<section class="strip">
+  <div class="tiles">
+    <button class="tile" data-dd-action-name="Tile: Get Quote" (click)="selectTab('quote')">
+      <span class="icon">🏷️</span>Get Quote
+    </button>
+    <button class="tile" data-dd-action-name="Tile: Delivery Services" (click)="selectTab('shipment')">
+      <span class="icon">🚚</span>Delivery Services
+    </button>
+    <button class="tile" data-dd-action-name="Tile: Find a location" (click)="selectTab('pickup')">
+      <span class="icon">📍</span>Find a location
+    </button>
+  </div>
+  <div class="track-box">
+    <input [(ngModel)]="trackingId" name="trackingId" placeholder="Track Your Shipments" aria-label="Tracking number"
+           (keyup.enter)="track()" />
+    <button class="btn-go" data-dd-action-name="Track shipment" (click)="track()">Track</button>
+  </div>
+</section>

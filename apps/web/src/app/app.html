@@ -1,0 +1,14 @@
+<header class="topbar">
+  <nav class="nav-left">
+    <a class="brand" routerLink="/">Shipping <span>Express</span></a>
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+    <a routerLink="/ship" routerLinkActive="active">Ship</a>
+    <a routerLink="/track" routerLinkActive="active">Track</a>
+  </nav>
+  <nav class="nav-right">
+    <a href="#" data-dd-action-name="Register" (click)="$event.preventDefault()">Register</a>
+    <a href="#" data-dd-action-name="Login" (click)="$event.preventDefault()">Login</a>
+  </nav>
+</header>
+
+<router-outlet />

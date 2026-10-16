@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Acme × Datadog — End-to-end visibility with OpenTelemetry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --dd-purple:#632CA6; --dd-purple-light:#7B3FC4; --dd-purple-dark:#3D1A6E; --dd-purple-xdark:#1D1133;
+  --dd-orange:#FF6B35; --dd-green:#00C7B7; --dd-blue:#3E9BFF;
+  --bg:#0D1117; --panel:#161B22; --card:#1C2128;
+  --brand-yellow:#F5B700; --brand-red:#E0533D;
+  --muted:rgba(255,255,255,.62);
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { width:100%; height:100%; overflow:hidden;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--bg); color:#fff; }
+#deck { position:fixed; inset:0; cursor:pointer; }
+
+.slide { position:absolute; inset:0; opacity:0; pointer-events:none; display:flex; flex-direction:column;
+  transition:opacity .5s ease, transform .5s ease; transform:translateX(60px); overflow:hidden;
+  background:radial-gradient(ellipse at 85% 0%, rgba(99,44,166,.28), transparent 55%), var(--bg); }
+.slide.active { opacity:1; pointer-events:all; transform:translateX(0); }
+.slide.prev { opacity:0; transform:translateX(-60px); }
+
+.grid-overlay { position:absolute; inset:0; pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
+  background-size:60px 60px; }
+
+.slide-body { flex:1; display:flex; flex-direction:column; justify-content:center; padding:56px 80px; position:relative; z-index:1; min-height:0; }
+
+h1 { font-size:clamp(64px,5.5vw,96px); font-weight:800; line-height:1.05; letter-spacing:-1px; }
+h2 { font-size:clamp(52px,4.5vw,76px); font-weight:800; line-height:1.08; letter-spacing:-.5px; margin-bottom:14px; }
+h3 { font-size:clamp(32px,2.5vw,44px); font-weight:700; line-height:1.15; }
+p  { font-size:clamp(22px,1.7vw,28px); line-height:1.45; }
+.eyebrow { font-size:clamp(16px,1.1vw,20px); font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--dd-orange); margin-bottom:12px; }
+.sub { color:var(--muted); font-size:clamp(22px,1.6vw,28px); margin-bottom:28px; max-width:1500px; }
+.accent { background:linear-gradient(90deg,#B98CFF,var(--dd-orange)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.brand { color:var(--brand-yellow); }
+
+.card { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:16px;
+  padding:28px 32px; display:flex; flex-direction:column; min-height:0; }
+.card.hl { background:rgba(99,44,166,.22); border-color:rgba(123,63,196,.55); }
+.card h3 { margin-bottom:12px; }
+.card-body { font-size:clamp(22px,1.6vw,27px); line-height:1.45; color:rgba(255,255,255,.86); }
+.card-body li { margin:0 0 10px 26px; }
+.outcome { background:rgba(255,255,255,.08); border-radius:10px; padding:14px 18px; margin-top:auto; }
+.card-body:has(+ .outcome) { margin-bottom:24px; }
+.outcome .k { font-size:16px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:4px; }
+.outcome .v { font-size:22px; font-weight:700; }
+
+.grid { flex:0 1 auto; min-height:0; display:grid; align-items:stretch; }
+.g2 { grid-template-columns:1fr 1fr; gap:28px; }
+.g3 { grid-template-columns:repeat(3,1fr); gap:22px; }
+
+.badge { display:inline-block; padding:5px 14px; border-radius:14px; font-size:17px; font-weight:700;
+  background:rgba(99,44,166,.4); color:#D0A8FF; border:1px solid rgba(123,63,196,.55); margin:0 8px 8px 0; }
+.badge.o { background:rgba(255,107,53,.18); color:#FFB596; border-color:rgba(255,107,53,.5); }
+.badge.g { background:rgba(0,199,183,.16); color:#7FF0E6; border-color:rgba(0,199,183,.5); }
+.badge.y { background:rgba(255,204,0,.16); color:#FFE27A; border-color:rgba(255,204,0,.5); }
+
+.code { background:#0D0920; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:22px 26px;
+  font-family:'SF Mono','Fira Code',Menlo,monospace; font-size:20px; line-height:1.7; color:#E6DAFF;
+  white-space:pre; overflow:hidden; }
+.code .c { color:#7D8590; } .code .k { color:#FF8F6B; } .code .s { color:#7FF0E6; } .code .h { background:rgba(255,204,0,.18); color:#FFE27A; border-radius:4px; }
+.file { font-family:'SF Mono',Menlo,monospace; font-size:17px; color:var(--muted); margin-bottom:10px; }
+
+.quote { margin-top:28px; flex-shrink:0; border-left:5px solid var(--dd-orange); padding:14px 22px;
+  background:rgba(255,107,53,.08); font-size:24px; border-radius:0 10px 10px 0; }
+
+/* Architecture / flow boxes */
+.node { border-radius:14px; padding:20px 22px; text-align:center; border:2px solid; }
+.node .t { font-size:26px; font-weight:800; }
+.node .d { font-size:18px; color:rgba(255,255,255,.75); margin-top:6px; line-height:1.35; }
+.arrow { display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--dd-orange);
+  font-size:18px; font-weight:700; text-align:center; }
+.arrow .line { font-size:44px; line-height:1; }
+
+/* Waterfall */
+.wf-row { display:grid; grid-template-columns:520px 1fr; align-items:center; gap:18px; margin-bottom:12px; }
+.wf-label { font-size:21px; font-family:'SF Mono',Menlo,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wf-track { position:relative; height:52px; background:rgba(255,255,255,.04); border-radius:6px; }
+.wf-bar { position:absolute; top:4px; bottom:4px; border-radius:6px; display:flex; align-items:center; padding-left:12px;
+  font-size:17px; font-weight:700; color:#0D1117; white-space:nowrap; }
+
+/* Demo cards */
+.demo { display:flex; flex-direction:column; text-decoration:none; color:#fff; cursor:pointer; }
+.demo:hover { border-color:var(--dd-orange); }
+.demo .n { font-size:56px; font-weight:800; color:var(--dd-orange); line-height:1; margin-bottom:10px; }
+.demo .u { margin-top:auto; padding-top:18px; font-family:'SF Mono',Menlo,monospace; font-size:16px; color:#B98CFF; word-break:break-all; }
+
+.progress { position:fixed; top:0; left:0; height:5px; background:linear-gradient(90deg,#7B3FC4,#FF6B35);
+  transition:width .4s ease; z-index:100; }
+.counter { position:fixed; bottom:18px; right:28px; font-size:16px; color:rgba(255,255,255,.45); z-index:100; }
+.kbd-hint { position:fixed; bottom:18px; left:28px; font-size:15px; color:rgba(255,255,255,.35); z-index:100; }
+kbd { font-size:13px; border:1px solid rgba(255,255,255,.25); border-radius:4px; padding:1px 6px; }
+.kv { display:grid; grid-template-columns:1fr; row-gap:6px; }
+.kv .badge { margin:0; justify-self:start; }
+.kv .badge:not(:first-child) { margin-top:12px; }
+.logo-row { display:flex; align-items:center; gap:22px; font-size:30px; font-weight:800; }
+.logo-brand { background:var(--brand-yellow); color:var(--brand-red); padding:6px 18px; font-style:italic; border-radius:4px; }
+.logo-dd { background:var(--dd-purple); padding:6px 18px; border-radius:4px; }
+
+/* ---------- Print / PDF export ---------- */
+@page { size:1920px 1080px; margin:0; }
+@media print {
+  html, body { width:1920px; height:auto; overflow:visible !important; background:#0D1117 !important; margin:0 !important; padding:0 !important;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  #deck { position:static !important; inset:auto !important; width:1920px !important; height:auto !important;
+    cursor:default !important; overflow:visible !important; display:block !important; }
+  .slide { position:relative !important; inset:auto !important; width:1920px !important; height:1080px !important;
+    opacity:1 !important; transform:none !important; pointer-events:auto !important;
+    page-break-after:always; break-after:page; page-break-inside:avoid; break-inside:avoid; overflow:hidden !important; display:flex !important; }
+  .slide:last-child { page-break-after:auto; break-after:auto; }
+  .progress, .counter, .kbd-hint { display:none !important; }
+  * { transition:none !important; animation:none !important; }
+}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="counter" id="counter"></div>
+<div class="kbd-hint"><kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;·&nbsp; <kbd>Space</kbd> next &nbsp;·&nbsp; <kbd>P</kbd> export PDF &nbsp;·&nbsp; click left/right edges</div>
+
+<div id="deck">
+
+<!-- 1. Cover -->
+<section class="slide active">
+  <div class="grid-overlay"></div>
+  <div class="slide-body" style="justify-content:center;">
+    <div class="logo-row" style="margin-bottom:48px;"><span class="logo-brand">Acme</span><span style="color:var(--muted)">×</span><span class="logo-dd">Datadog</span></div>
+    <div class="eyebrow">Live demo · OpenTelemetry end to end</div>
+    <h1>One request. One trace.<br><span class="accent">From the click to the last hop.</span></h1>
+    <p class="sub" style="margin-top:28px;">Datadog RUM on an Angular front end, linked to Java services instrumented with OpenTelemetry and shipped through the OpenTelemetry Collector on Linux.</p>
+    <div class="grid g3" style="flex:0 0 auto; margin-top:24px;">
+      <div class="card"><div style="font-size:64px;font-weight:800;" class="accent">0</div><div class="card-body">lines of tracing code in the Java services</div></div>
+      <div class="card"><div style="font-size:64px;font-weight:800;" class="accent">1</div><div class="card-body">W3C <code>traceparent</code> header links browser to backend</div></div>
+      <div class="card"><div style="font-size:64px;font-weight:800;" class="accent">3 → 1</div><div class="card-body">three teams' systems, one shared view</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Challenge recap -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">What we heard</div>
+    <h2>Requests hop <span class="brand">A → B → C</span>.<br>No team sees past its own system.</h2>
+    <div style="display:grid; grid-template-columns:220px 70px 1fr 70px 1fr 70px 1fr; align-items:stretch; margin:22px 0 26px;">
+      <div class="node" style="border-color:#888;"><div class="t">Customer</div><div class="d">clicks “Track”</div></div>
+      <div class="arrow"><span class="line">→</span></div>
+      <div class="node" style="border-color:var(--dd-blue);background:rgba(62,155,255,.08);"><div class="t">Service A</div><div class="d">Team A's logs &amp; metrics</div></div>
+      <div class="arrow" style="color:var(--brand-red);"><span class="line">║</span>blind spot</div>
+      <div class="node" style="border-color:var(--dd-green);background:rgba(0,199,183,.08);"><div class="t">Service B</div><div class="d">Team B's logs &amp; metrics</div></div>
+      <div class="arrow" style="color:var(--brand-red);"><span class="line">║</span>blind spot</div>
+      <div class="node" style="border-color:var(--dd-orange);background:rgba(255,107,53,.08);"><div class="t">Service C</div><div class="d">Team C's logs &amp; metrics</div></div>
+    </div>
+    <div class="grid g3">
+      <div class="card"><h3>“Where did the 3 seconds go?”</h3><div class="card-body">Each team's dashboard looks healthy in isolation. Nobody can see the whole journey of one request.</div>
+        <div class="outcome"><div class="k">Today</div><div class="v">Latency is argued, not measured</div></div></div>
+      <div class="card"><h3>“Whose error is it?”</h3><div class="card-body">A failure deep in C shows up as a generic 500 in A. Incidents bounce between teams via chat and screenshots.</div>
+        <div class="outcome"><div class="k">Today</div><div class="v">Hours of war-room triage</div></div></div>
+      <div class="card"><h3>“What did the customer see?”</h3><div class="card-body">Backend logs never connect to the actual browser session, so a complaint can't be tied to a request.</div>
+        <div class="outcome"><div class="k">Today</div><div class="v">No customer-to-code link</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Approach / architecture -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">The approach</div>
+    <h2>Open standards in, one view out</h2>
+    <p class="sub">Instrument once with OpenTelemetry, keep vendor-neutral pipelines, and let Datadog stitch browser, services, hosts and logs together.</p>
+    <div style="display:grid; grid-template-columns:1.15fr 120px 1fr 120px 1fr 120px 1fr; align-items:stretch;">
+      <div class="node" style="border-color:var(--brand-yellow);background:rgba(255,204,0,.07);"><div class="t">Browser</div><div class="d">Angular app<br>Datadog RUM SDK</div></div>
+      <div class="arrow"><span class="line">→</span>traceparent</div>
+      <div class="node" style="border-color:var(--dd-blue);"><div class="t">adt-service-a</div><div class="d">Spring Boot · jek-my1<br>OTel Java agent</div></div>
+      <div class="arrow"><span class="line">→</span>traceparent</div>
+      <div class="node" style="border-color:var(--dd-green);"><div class="t">service-b</div><div class="d">Spring Boot · jek-my2<br>OTel Java agent</div></div>
+      <div class="arrow"><span class="line">→</span>traceparent</div>
+      <div class="node" style="border-color:var(--dd-orange);"><div class="t">service-c</div><div class="d">Spring Boot · jek-cz1<br>OTel Java agent</div></div>
+    </div>
+    <div style="display:grid; grid-template-columns:1.15fr 120px 1fr 120px 1fr 120px 1fr; margin-top:10px;">
+      <div class="arrow" style="font-size:17px;"><span class="line">↓</span>RUM events</div><div></div>
+      <div class="arrow" style="font-size:17px;"><span class="line">↓</span>OTLP</div><div></div>
+      <div class="arrow" style="font-size:17px;"><span class="line">↓</span>OTLP</div><div></div>
+      <div class="arrow" style="font-size:17px;"><span class="line">↓</span>OTLP</div>
+    </div>
+    <div style="display:grid; grid-template-columns:1.15fr 120px 1fr 120px 1fr 120px 1fr; margin-top:6px;">
+      <div></div><div></div>
+      <div class="node" style="border-color:#7D8590;padding:14px;"><div class="t" style="font-size:22px;">OTel Collector</div><div class="d">hostmetrics · syslog</div></div><div></div>
+      <div class="node" style="border-color:#7D8590;padding:14px;"><div class="t" style="font-size:22px;">OTel Collector</div><div class="d">hostmetrics · syslog</div></div><div></div>
+      <div class="node" style="border-color:#7D8590;padding:14px;"><div class="t" style="font-size:22px;">OTel Collector</div><div class="d">hostmetrics · syslog</div></div>
+    </div>
+    <div class="card hl" style="margin-top:28px; padding:36px 32px; text-align:center;">
+      <h3 style="font-size:52px;">Datadog</h3>
+      <div class="card-body" style="margin-top:6px;">One trace ID across browser, services, hosts and logs</div>
+      <div style="margin-top:16px;">
+        <span class="badge">RUM</span><span class="badge">Session Replay</span><span class="badge">APM / Distributed Tracing</span>
+        <span class="badge">Service Map</span><span class="badge">Logs</span><span class="badge">Infrastructure</span><span class="badge">Fleet Automation</span><span class="badge">Dashboards</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Angular -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">Instrumentation 1 of 3 · Front end</div>
+    <h2>Angular: Datadog RUM, speaking W3C</h2>
+    <div class="grid" style="grid-template-columns:1.35fr 1fr; gap:28px;">
+      <div style="display:flex;flex-direction:column;min-height:0;">
+        <div class="file">apps/web/src/main.ts</div>
+        <div class="code">datadogRum.<span class="k">init</span>({
+  applicationId: <span class="s">'<RUM_APPLICATION_ID>'</span>,
+  clientToken:   <span class="s">'<RUM_CLIENT_TOKEN>'</span>,
+  site: <span class="s">'datadoghq.com'</span>,
+  service: <span class="s">'shipping-express'</span>, env: <span class="s">'uat'</span>, version: <span class="s">'1.0.0'</span>,
+  sessionSampleRate: 100, sessionReplaySampleRate: 100,
+  trackResources: true, trackUserInteractions: true,
+  defaultPrivacyLevel: <span class="s">'mask-user-input'</span>,
+<span class="h">  allowedTracingUrls: [{
+    match: (url) => url.startsWith(`${origin}/api/`),
+    propagatorTypes: ['tracecontext'],   </span><span class="c">// W3C traceparent</span><span class="h">
+  }],</span>
+  plugins: [angularPlugin({ router: <span class="k">true</span> })],
+});</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px;min-height:0;">
+        <div class="file" style="margin-bottom:0;">apps/web/src/app/app.config.ts</div>
+        <div class="code">providers: [
+  provideRouter(routes),
+  <span class="h">provideDatadogRouter()</span>,       <span class="c">// route → RUM view</span>
+  <span class="h">provideDatadogErrorHandler()</span>, <span class="c">// Angular errors</span>
+  provideHttpClient(withFetch()),
+]</div>
+        <div class="card" style="margin-top:0;">
+          <div class="card-body"><ul>
+            <li>Every <code>/api/*</code> call carries <code>traceparent</code>, which OTel backends understand out of the box</li>
+            <li>Views, actions, errors and Session Replay per user</li>
+            <li>No change to Angular <code>HttpClient</code> calls</li>
+          </ul></div>
+          <div class="outcome"><div class="k">Key outcome</div><div class="v">The trace starts in the customer's browser</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Java -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">Instrumentation 2 of 3 · Java services</div>
+    <h2>Spring Boot: OpenTelemetry Java agent, zero code</h2>
+    <div class="grid g2">
+      <div style="display:flex;flex-direction:column;min-height:0;">
+        <div class="file">apps/deploy/install-app.sh → systemd unit</div>
+        <div class="code"><span class="c"># Who am I, and where do I send telemetry?</span>
+OTEL_SERVICE_NAME=<span class="s">adt-service-a</span>
+OTEL_EXPORTER_OTLP_ENDPOINT=<span class="s">http://localhost:4318</span>
+OTEL_RESOURCE_ATTRIBUTES=<span class="s">deployment.environment.name=uat,
+                         service.version=1.0.0</span>
+OTEL_TRACES_EXPORTER=<span class="s">otlp</span>
+OTEL_METRICS_EXPORTER=<span class="s">otlp</span>
+OTEL_LOGS_EXPORTER=<span class="s">otlp</span>   <span class="c"># logs carry trace_id</span>
+<span class="c"># Name the downstream behind an IP</span>
+OTEL_INSTRUMENTATION_COMMON_PEER_SERVICE_MAPPING=
+                         <span class="s">10.0.1.176=service-b</span>
+
+<span class="h">java -javaagent:opentelemetry-javaagent.jar -jar app.jar</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;min-height:0;">
+        <div class="file">ShippingController.java (application code, unchanged)</div>
+        <div class="code">@PostMapping(<span class="s">"/shipments"</span>)
+public Map&lt;String,Object&gt; createShipment(
+        @RequestBody Map&lt;String,String&gt; req) {
+  log.info(<span class="s">"Creating shipment from {} to {}"</span>, …);
+  serviceB.get().retrieve().body(…); <span class="c">// → B → C</span>
+  return Map.of(<span class="s">"shipmentId"</span>, id, <span class="s">"status"</span>, <span class="s">"CREATED"</span>);
+}
+<span class="c">// No OpenTelemetry imports. No spans. No headers.</span></div>
+        <div class="card" style="margin-top:18px;">
+          <div class="card-body"><ul>
+            <li>Agent v2.32.0 traces Tomcat, Spring MVC and the HTTP client automatically</li>
+            <li>Continues the browser's W3C context and passes it on to B and C</li>
+            <li>JVM metrics and trace-linked logs over the same OTLP pipe</li>
+          </ul></div>
+          <div class="outcome"><div class="k">Key outcome</div><div class="v">Teams change nothing in their code</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. Linux / Collector -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">Instrumentation 3 of 3 · Linux hosts</div>
+    <h2>OpenTelemetry Collector: one pipeline per host</h2>
+    <p class="sub">otelcol-contrib 0.149.0 as a systemd service on Ubuntu 22.04. It replaces a vendor agent for hosts, logs and app telemetry.</p>
+    <div style="display:grid; grid-template-columns:1fr 40px 1fr 40px 1fr 40px 1fr; align-items:stretch;">
+      <div class="card" style="border-color:var(--dd-blue);"><h3 style="font-size:30px;">Receivers</h3><div class="card-body">
+        <div class="kv"><span class="badge">otlp</span><span>apps · 4317 / 4318</span><span class="badge">hostmetrics</span><span>CPU · mem · disk · net</span><span class="badge">filelog</span><span>syslog · auth.log</span></div></div></div>
+      <div class="arrow"><span class="line">→</span></div>
+      <div class="card" style="border-color:var(--dd-green);"><h3 style="font-size:30px;">Processors</h3><div class="card-body">
+        <div class="kv"><span class="badge g">resourcedetection</span><span>host · OS</span><span class="badge g">resource</span><span>host.name · env=uat</span></div></div></div>
+      <div class="arrow"><span class="line">→</span></div>
+      <div class="card" style="border-color:var(--dd-purple-light);"><h3 style="font-size:30px;">Connector</h3><div class="card-body">
+        <span class="badge">datadog/connector</span><div style="margin-top:6px;">APM stats (requests, errors, latency) computed in the Collector</div></div></div>
+      <div class="arrow"><span class="line">→</span></div>
+      <div class="card" style="border-color:var(--dd-orange);"><h3 style="font-size:30px;">Exporter</h3><div class="card-body">
+        <div class="kv"><span class="badge o">datadog/exporter</span><span>traces · metrics · logs</span><span class="badge o">datadog</span><span>Fleet Automation</span></div></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:24px;">
+      <div style="display:flex;flex-direction:column;min-height:0;">
+        <div class="file">otelcol-ubuntu/config.yaml · service.pipelines</div>
+        <div class="code">traces:   receivers: [<span class="s">otlp</span>]
+          processors: [<span class="s">resourcedetection, resource</span>]
+          exporters: [<span class="h">datadog/connector</span>]
+traces/2: receivers: [<span class="h">datadog/connector</span>] → [<span class="s">datadog/exporter</span>]
+metrics:  receivers: [<span class="s">otlp, hostmetrics, datadog/connector</span>]
+logs:     receivers: [<span class="s">otlp, filelog/system</span>]</div>
+      </div>
+      <div class="card">
+        <div class="card-body"><ul>
+          <li>Vendor-neutral config, so receivers and processors are portable</li>
+          <li>API key stays in a root-only env file, never in YAML</li>
+          <li>Visualise the full config live in OTelBin (demo step 6)</li>
+        </ul></div>
+        <div class="outcome"><div class="k">Key outcome</div><div class="v">Hosts, logs and traces through one open pipeline</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. How it stitches -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">How it stitches together</div>
+    <h2>One click → one trace across three teams</h2>
+    <p class="sub">Real trace from the demo (trace 14911808522202188851): a customer taps <b>Track</b>, and service-c's injected failure is visible end to end.</p>
+    <div class="code" style="font-size:20px;margin-bottom:26px;"><span class="c">// injected by the RUM SDK on the browser request</span>
+traceparent: 00-<span class="h">0000000000000000cef162d844810c33</span>-1d96e32a32448b12-01
+tracestate:  dd=s:1;o:rum</div>
+    <div style="flex:0 0 auto;">
+      <div class="wf-row"><div class="wf-label">shipping-express · browser</div><div class="wf-track"><div class="wf-bar" style="left:0;width:100%;background:var(--brand-yellow);">GET /api/track · 409 ms · 500</div></div></div>
+      <div class="wf-row"><div class="wf-label">&nbsp;└ adt-service-a · jek-my1</div><div class="wf-track"><div class="wf-bar" style="left:67.3%;width:26.2%;background:var(--dd-blue);">107 ms</div></div></div>
+      <div class="wf-row"><div class="wf-label">&nbsp;&nbsp;&nbsp;└ service-b · jek-my2</div><div class="wf-track"><div class="wf-bar" style="left:71.7%;width:17.5%;background:var(--dd-green);">72 ms</div></div></div>
+      <div class="wf-row"><div class="wf-label">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ service-c · jek-cz1</div><div class="wf-track"><div class="wf-bar" style="left:73.5%;width:13.8%;background:var(--dd-orange);">57 ms · error</div></div></div>
+    </div>
+    <div class="grid g3" style="flex:0 0 auto;margin-top:12px;">
+      <div class="card"><div class="card-body"><b>Where did the time go?</b> 107 ms in the services; the other ~300 ms was browser queueing and network.</div></div>
+      <div class="card"><div class="card-body"><b>Whose error is it?</b> service-c, on jek-cz1, with the stack trace attached.</div></div>
+      <div class="card"><div class="card-body"><b>What did the customer see?</b> Their Session Replay, at the exact moment.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Demo -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">Live demo</div>
+    <h2>Let's follow a shipment</h2>
+    <div class="grid g3" style="grid-template-rows:1fr 1fr;">
+      <a class="card demo" href="http://<MY1_PUBLIC_IP>:8080/" target="_blank">
+        <div class="n">1</div><h3>The customer's view</h3><div class="card-body">Create a shipment, get a quote, track a parcel.</div>
+        <div class="u"><MY1_PUBLIC_IP>:8080</div></a>
+      <a class="card demo" href="https://app.datadoghq.com/rum/sessions" target="_blank">
+        <div class="n">2</div><h3>Session Replay</h3><div class="card-body">Watch exactly what the customer did and saw.</div>
+        <div class="u">RUM → Session Replay</div></a>
+      <a class="card demo" href="https://app.datadoghq.com/rum/sessions" target="_blank">
+        <div class="n">3</div><h3>Click → backend trace</h3><div class="card-body">From the RUM request into the A → B → C waterfall.</div>
+        <div class="u">RUM → Trace waterfall</div></a>
+      <a class="card demo" href="https://app.datadoghq.com/software" target="_blank">
+        <div class="n">4</div><h3>Service map</h3><div class="card-body">Dependencies discovered automatically from OTel traces.</div>
+        <div class="u">Software Catalog → Map</div></a>
+      <a class="card demo" href="https://app.datadoghq.com/dashboard/lists" target="_blank">
+        <div class="n">5</div><h3>Shared dashboard</h3><div class="card-body">Requests, errors, latency, dependencies, hosts and logs on one page.</div>
+        <div class="u">Dashboards → ADT Demo</div></a>
+      <a class="card demo" href="https://www.otelbin.io/#config=**H_otelcol-contrib_config_for_Ubuntu_22.04_%E2%80%94_Option_B_*Cnative_Datadog_exporter_*P_connector*D.*N*H_*_*_HOSTNAME*_*__and_*_*_ENV*_*__are_substituted_per_host_by_install.sh.*Nreceivers%3A*N__otlp%3A*N____protocols%3A*N______grpc%3A*N________endpoint%3A_0.0.0.0%3A4317*N______http%3A*N________endpoint%3A_0.0.0.0%3A4318*N*N__*H_Host_metrics_%E2%80%94_replaces_Datadog_Agent_for_infrastructure_monitoring*N__hostmetrics%3A*N____collection*_interval%3A_30s*N____scrapers%3A*N______cpu%3A*N______disk%3A*N______filesystem%3A*N______load%3A*N______memory%3A*N______network%3A*N______paging%3A*N______processes%3A*N*N__*H_System_logs_%E2%80%94_Ubuntu_rsyslog_files_*Ctraditional_syslog_format*D*N__filelog%2Fsystem%3A*N____include%3A*N______-_%2Fvar%2Flog%2Fsyslog*N______-_%2Fvar%2Flog%2Fauth.log*N____include*_file*_name%3A_true*N____include*_file*_path%3A_true*N____storage%3A_file*_storage*N____operators%3A*N______-_type%3A_regex*_parser*N________regex%3A_*%22%5E*C*QP*Ltime*G*Bw*P_*P*Bd*P_*Bd*P%3A*Bd*P%3A*Bd*P*D_*C*QP*Lhost*G*BS*P*D_*C*QP*Lident*G*BS*P*Q*D*C*Q%3A*B%5B*C*QP*Lpid*G*Bd*P*D*B%5D*D*Q%3A_*C*QP*Lmessage*G.***D*S*%22*N________severity%3A*N__________parse*_from%3A_attributes.ident*N________*H_Syslog_space-pads_single-digit_days_*C%22Oct__9%22*D%3B_Go*%22s_%22*_2%22_handles_that*N________timestamp%3A*N__________parse*_from%3A_attributes.time*N__________layout*_type%3A_gotime*N__________layout%3A_*%22Jan_*_2_15%3A04%3A05*%22*N*Nprocessors%3A*N__resourcedetection%3A*N____detectors%3A_%5Bsystem%2C_env%5D*N____system%3A*N______hostname*_sources%3A_%5B%22os%22%5D*N______resource*_attributes%3A*N________host.name%3A*N__________enabled%3A_true*N________os.type%3A*N__________enabled%3A_true*N*N__*H_Align_host.name_with_the_Datadog_hostname_and_tag_all_telemetry_env%3A*_*_ENV*_*_*N__*H_*Cinsert_keeps_any_deployment.environment.name_an_app_already_sets*D*N__resource%3A*N____attributes%3A*N______-_key%3A_host.name*N________value%3A_%22*_*_HOSTNAME*_*_%22*N________action%3A_upsert*N______-_key%3A_deployment.environment.name*N________value%3A_%22*_*_ENV*_*_%22*N________action%3A_insert*N*N*H_Datadog_Connector_%E2%80%94_computes_APM_stats_*Clatency%2C_error_rates%2C_request_counts*D_from_traces.*N*H_Operation%2Fresource_names_use_the_default_V2_logic_*Cdatadog.EnableOperationAndResourceNameV2*D%2C*N*H_e.g._operation_%22http.server.request%22%2C_resource_%22GET_%2Fapi%2Fa%22._Don*%22t_set_span*_name*_as*_resource*_name*N*H_here_or_in_the_exporter_%E2%80%94_it_overrides_V2_and_is_being_deprecated.*Nconnectors%3A*N__datadog%2Fconnector%3A*N____traces%3A*N______compute*_stats*_by*_span*_kind%3A_true*N______peer*_tags*_aggregation%3A_true*N*Nexporters%3A*N__datadog%2Fexporter%3A*N____hostname%3A_%22*_*_HOSTNAME*_*_%22*N____sending*_queue%3A*N______enabled%3A_true*N______num*_consumers%3A_10*N______queue*_size%3A_1000*N____api%3A*N______key%3A_*S%7Benv%3ADD*_API*_KEY%7D*N______site%3A_datadoghq.com*N____host*_metadata%3A*N______enabled%3A_true*N______hostname*_source%3A_config*_or*_system*N______tags%3A*N________-_env%3A*_*_ENV*_*_*N________-_owner%3Ajek*N*N__*H_Debug_exporter_%E2%80%94_for_troubleshooting_during_setup*N__debug%3A*N____verbosity%3A_basic*N*Nextensions%3A*N__health*_check%3A*N____endpoint%3A_0.0.0.0%3A13133*N__file*_storage%3A*N____directory%3A_%2Fvar%2Flib%2Fotelcol-contrib%2Fstorage*N__*H_Datadog_extension_%E2%80%94_makes_collector_visible_in_Datadog_Infrastructure_and_Fleet_Automation*N__datadog%3A*N____api%3A*N______key%3A_*S%7Benv%3ADD*_API*_KEY%7D*N______site%3A_datadoghq.com*N____hostname%3A_%22*_*_HOSTNAME*_*_%22*N*Nservice%3A*N__extensions%3A_%5Bhealth*_check%2C_file*_storage%2C_datadog%5D*N__pipelines%3A*N____traces%3A*N______receivers%3A_%5Botlp%5D*N______processors%3A_%5Bresourcedetection%2C_resource%5D*N______exporters%3A_%5Bdatadog%2Fconnector%5D*N____traces%2F2%3A*N______receivers%3A_%5Bdatadog%2Fconnector%5D*N______exporters%3A_%5Bdatadog%2Fexporter%2C_debug%5D*N____metrics%3A*N______receivers%3A_%5Botlp%2C_hostmetrics%2C_datadog%2Fconnector%5D*N______processors%3A_%5Bresourcedetection%2C_resource%5D*N______exporters%3A_%5Bdatadog%2Fexporter%5D*N____logs%3A*N______receivers%3A_%5Botlp%2C_filelog%2Fsystem%5D*N______processors%3A_%5Bresourcedetection%2C_resource%5D*N______exporters%3A_%5Bdatadog%2Fexporter%5D*N%7E" target="_blank">
+        <div class="n">6</div><h3>The Collector config</h3><div class="card-body">The real pipeline, visualised in OTelBin.</div>
+        <div class="u">otelbin.io</div></a>
+    </div>
+  </div>
+</section>
+
+<!-- 9. Summary -->
+<section class="slide">
+  <div class="grid-overlay"></div>
+  <div class="slide-body">
+    <div class="eyebrow">What this means for Acme</div>
+    <h2>Every team sees the <span class="accent">whole journey</span></h2>
+    <div class="grid g3">
+      <div class="card hl"><h3>Open by default</h3><div class="card-body"><ul>
+        <li>OpenTelemetry agent and Collector, no proprietary agent on the hosts</li>
+        <li>W3C Trace Context end to end</li>
+        <li>Portable config, no lock-in at the instrumentation layer</li></ul></div>
+        <div class="outcome"><div class="k">Benefit</div><div class="v">Standardise once, across every team</div></div></div>
+      <div class="card hl"><h3>Faster triage</h3><div class="card-body"><ul>
+        <li>One trace from browser click to the failing hop</li>
+        <li>Logs, host metrics and errors on the same trace ID</li>
+        <li>Service map and dependency stats built automatically</li></ul></div>
+        <div class="outcome"><div class="k">Benefit</div><div class="v">From war room to the right team, fast</div></div></div>
+      <div class="card hl"><h3>Customer-first</h3><div class="card-body"><ul>
+        <li>RUM and Session Replay show what customers experienced</li>
+        <li>Errors linked to the backend request that caused them</li>
+        <li>Shared dashboards for business and engineering</li></ul></div>
+        <div class="outcome"><div class="k">Benefit</div><div class="v">Complaints map straight to code</div></div></div>
+    </div>
+    <div class="quote"><b>Suggested next step:</b> pick one real A → B → C flow and instrument it in a 2-week PoC using this exact pattern.</div>
+  </div>
+</section>
+
+</div>
+
+<script>
+const slides = Array.from(document.querySelectorAll('.slide'));
+let cur = 0;
+function go(dir) {
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add('prev');
+  const p = cur; setTimeout(() => slides[p].classList.remove('prev'), 500);
+  cur = (cur + dir + slides.length) % slides.length;
+  slides[cur].classList.add('active');
+  update();
+}
+function jump(i) { slides[cur].classList.remove('active'); cur = i; slides[cur].classList.add('active'); update(); }
+function update() {
+  document.getElementById('counter').textContent = `${cur + 1} / ${slides.length}`;
+  document.getElementById('progress').style.width = `${((cur + 1) / slides.length) * 100}%`;
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+  if (e.key === 'Home') { e.preventDefault(); jump(0); }
+  if (e.key === 'End') { e.preventDefault(); jump(slides.length - 1); }
+  if ((e.key === 'p' || e.key === 'P') && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); window.print(); }
+});
+document.getElementById('deck').addEventListener('click', e => {
+  if (e.target.closest('a, button')) return;
+  go(e.clientX > window.innerWidth / 2 ? 1 : -1);
+});
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+:root {
+  --brand-yellow: #f7cc4f;
+  --brand-red: #c8102e;
+  --go-green: #57b947;
+  --card-dark: rgba(52, 52, 64, 0.92);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1a1a1a;
+  background: #f4f4f4;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn-go {
+  background: var(--go-green);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 0 28px;
+  height: 48px;
+}
+
+.btn-go:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.banner {
+  margin-top: 16px;
+  padding: 12px 16px;
+  font-size: 15px;
+}
+
+.banner.ok {
+  background: #e6f4e2;
+  border-left: 4px solid var(--go-green);
+}
+
+.banner.err {
+  background: #fdecee;
+  border-left: 4px solid var(--brand-red);
+}

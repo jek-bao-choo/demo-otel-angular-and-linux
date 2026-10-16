@@ -1,0 +1,46 @@
+.track-page {
+  max-width: 960px;
+  margin: 48px auto;
+  padding: 0 24px;
+}
+
+h1 {
+  font-size: 34px;
+}
+
+.track-form {
+  display: flex;
+  background: var(--brand-yellow);
+  padding: 28px;
+}
+
+.track-form input {
+  flex: 1;
+  height: 64px;
+  padding: 0 20px;
+  font-size: 19px;
+  border: 1px solid #ccc;
+}
+
+.track-form .btn-go {
+  height: 64px;
+}
+
+.result {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 14px 24px;
+  margin-top: 24px;
+  padding: 24px;
+  background: #fff;
+  border-left: 4px solid var(--go-green);
+  font-size: 18px;
+}
+
+.label {
+  color: #666;
+}
+
+.value.status {
+  font-weight: 700;
+}

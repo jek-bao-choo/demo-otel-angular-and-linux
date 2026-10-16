@@ -1,0 +1,125 @@
+# otelcol-contrib config for Ubuntu 22.04 — Option B (native Datadog exporter + connector).
+# __HOSTNAME__ and __ENV__ are substituted per host by install.sh.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Host metrics — replaces Datadog Agent for infrastructure monitoring
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      load:
+      memory:
+      network:
+      paging:
+      processes:
+
+  # System logs — Ubuntu rsyslog files (traditional syslog format)
+  filelog/system:
+    include:
+      - /var/log/syslog
+      - /var/log/auth.log
+    include_file_name: true
+    include_file_path: true
+    storage: file_storage
+    operators:
+      - type: regex_parser
+        regex: '^(?P<time>\w+ +\d+ \d+:\d+:\d+) (?P<host>\S+) (?P<ident>\S+?)(?:\[(?P<pid>\d+)\])?: (?P<message>.*)$'
+        severity:
+          parse_from: attributes.ident
+        # Syslog space-pads single-digit days ("Oct  9"); Go's "_2" handles that
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: 'Jan _2 15:04:05'
+
+processors:
+  resourcedetection:
+    detectors: [system, env]
+    system:
+      hostname_sources: ["os"]
+      resource_attributes:
+        host.name:
+          enabled: true
+        os.type:
+          enabled: true
+
+  # Align host.name with the Datadog hostname and tag all telemetry env:__ENV__
+  # (insert keeps any deployment.environment.name an app already sets)
+  resource:
+    attributes:
+      - key: host.name
+        value: "__HOSTNAME__"
+        action: upsert
+      - key: deployment.environment.name
+        value: "__ENV__"
+        action: insert
+
+# Datadog Connector — computes APM stats (latency, error rates, request counts) from traces.
+# Operation/resource names use the default V2 logic (datadog.EnableOperationAndResourceNameV2),
+# e.g. operation "http.server.request", resource "GET /api/a". Don't set span_name_as_resource_name
+# here or in the exporter — it overrides V2 and is being deprecated.
+connectors:
+  datadog/connector:
+    traces:
+      compute_stats_by_span_kind: true
+      peer_tags_aggregation: true
+
+exporters:
+  datadog/exporter:
+    hostname: "__HOSTNAME__"
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 1000
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    host_metadata:
+      enabled: true
+      hostname_source: config_or_system
+      tags:
+        - env:__ENV__
+        - owner:jek
+
+  # Debug exporter — for troubleshooting during setup
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  file_storage:
+    directory: /var/lib/otelcol-contrib/storage
+  # Datadog extension — makes collector visible in Datadog Infrastructure and Fleet Automation
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: datadoghq.com
+    hostname: "__HOSTNAME__"
+
+service:
+  extensions: [health_check, file_storage, datadog]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, resource]
+      exporters: [datadog/connector]
+    traces/2:
+      receivers: [datadog/connector]
+      exporters: [datadog/exporter, debug]
+    metrics:
+      receivers: [otlp, hostmetrics, datadog/connector]
+      processors: [resourcedetection, resource]
+      exporters: [datadog/exporter]
+    logs:
+      receivers: [otlp, filelog/system]
+      processors: [resourcedetection, resource]
+      exporters: [datadog/exporter]

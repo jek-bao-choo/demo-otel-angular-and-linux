@@ -1,0 +1,239 @@
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  min-height: 520px;
+  padding: 48px 24px 96px;
+  color: #fff;
+  /* Night-skyline feel without photos: gradient sky plus a simple skyline silhouette */
+  background:
+    linear-gradient(to top, rgba(20, 20, 40, 0.85) 0, rgba(20, 20, 40, 0.85) 90px, transparent 90px),
+    repeating-linear-gradient(90deg, transparent 0 40px, rgba(255, 220, 120, 0.08) 40px 70px, transparent 70px 110px),
+    linear-gradient(160deg, #2b2f6b 0%, #4d4f8f 45%, #6d5f95 75%, #b98a6e 100%);
+}
+
+.hero-text {
+  flex: 0 1 460px;
+}
+
+.welcome {
+  font-size: 30px;
+  margin: 0;
+}
+
+h1 {
+  font-size: 52px;
+  margin: 4px 0;
+}
+
+.tagline {
+  font-size: 34px;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.card {
+  flex: 0 1 760px;
+  background: var(--card-dark);
+  padding: 32px;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 40px;
+}
+
+.tabs button {
+  height: 64px;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #666;
+  font-size: 18px;
+}
+
+.tabs button.active {
+  background: var(--brand-yellow);
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.route {
+  display: flex;
+  gap: 32px;
+}
+
+.stops {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+}
+
+.stop {
+  width: 52px;
+  height: 52px;
+  border: 3px solid var(--brand-yellow);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.dots {
+  flex: 1;
+  min-height: 60px;
+  border-left: 3px dotted var(--brand-yellow);
+  margin: 6px 0;
+}
+
+.fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.fields.pickup {
+  margin-bottom: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 40px;
+}
+
+select, input {
+  height: 72px;
+  padding: 0 20px;
+  font-size: 19px;
+  border: 1px solid #ccc;
+  background: #e8e8e8;
+}
+
+select {
+  background: #fff;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 36px;
+}
+
+.perks {
+  flex: 1;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 17px;
+  line-height: 1.7;
+}
+
+.cards {
+  display: flex;
+  gap: 6px;
+}
+
+.pay {
+  width: 88px;
+  height: 56px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.pay.visa {
+  color: #1a1f71;
+  font-size: 26px;
+}
+
+.pay.amex {
+  color: #fff;
+  background: #2e77bc;
+  font-size: 15px;
+  font-style: normal;
+}
+
+.pay.mc i {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #eb001b;
+  display: inline-block;
+}
+
+.pay.mc i + i {
+  background: #f79e1b;
+  margin-left: -12px;
+  opacity: 0.9;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: -72px 24px 40px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #fafafa;
+  padding: 28px 0;
+}
+
+.tile {
+  border: none;
+  border-right: 1px solid #ccc;
+  background: none;
+  color: #2b6cb0;
+  font-size: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.tile:last-child {
+  border-right: none;
+}
+
+.icon {
+  font-size: 44px;
+}
+
+.track-box {
+  background: var(--brand-yellow);
+  display: flex;
+  align-items: center;
+  padding: 36px;
+}
+
+.track-box input {
+  flex: 1;
+  background: #fff;
+  height: 84px;
+  border: 1px solid #ccc;
+  border-right: none;
+}
+
+.track-box .btn-go {
+  height: 84px;
+  border: 1px solid #ccc;
+  border-left: none;
+  padding: 0 44px;
+  font-size: 22px;
+  box-shadow: inset 0 0 0 12px #fff;
+}
+
+.banner {
+  color: #1a1a1a;
+}

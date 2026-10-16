@@ -1,0 +1,25 @@
+<section class="track-page">
+  <h1>Track Your Shipments</h1>
+  <div class="track-form">
+    <input [(ngModel)]="trackingId" name="trackingId" placeholder="Enter your tracking number, e.g. SE1234567890"
+           aria-label="Tracking number" (keyup.enter)="submit()" />
+    <button class="btn-go" data-dd-action-name="Track shipment" [disabled]="busy()" (click)="submit()">
+      {{ busy() ? '…' : 'Track' }}
+    </button>
+  </div>
+
+  @if (result(); as r) {
+    <div class="result">
+      <div class="label">Shipment</div>
+      <div class="value">{{ r.id }}</div>
+      <div class="label">Status</div>
+      <div class="value status">{{ r.status }}</div>
+      <div class="label">Last scan</div>
+      <div class="value">{{ r.lastScan }}</div>
+    </div>
+  }
+
+  @if (error(); as e) {
+    <div class="banner err">{{ e }}</div>
+  }
+</section>
